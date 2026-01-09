@@ -1,29 +1,28 @@
 ; procedures module
 
 ; importam variabilele din main
-extrn octet_array:byte, actual_len:word, word_c:word
+extrn octet_array:byte, actual_len:word, word_c:word, file_buffer:word
 extrn max_bit_pos:byte, buffer:byte, msg_space:byte
 
 ; facem functiile vizibile pentru main
-public parse_input, calc_word_c, sort_desc, find_max_bits, rotation
+public parse_input_file, calc_word_c, sort_desc, find_max_bits, rotation
 public display_array, display_array_full, print_hex_byte
 
 code segment
 assume cs:code
 
 ; parse_input
-parse_input proc
-    lea si, buffer+2      ; pointer la inceputul sirului introdus
-    lea di, octet_array   ; desc in memorie
-    xor cx, cx            ; contor pt nr de octeti
-
+parse_input_file proc
+    lea si, file_buffer
+    lea di, octet_array
+    xor cx, cx
 next_octet:
     xor ax, ax            ; reset ax pt noul octet
     xor bx, bx            ; in bx construim valoarea
 
 skip_spaces:
     mov al,[si]
-    cmp al, 0dh           ; verificam daca e 'enter'
+    cmp al, 0           ; verificam daca e 'enter'
     je done_parsing
     cmp al, ' '           ; sarim peste spatii
     jne get_first_nibble
@@ -38,7 +37,7 @@ get_first_nibble:
     mov al, [si]          ; inspectam caracterul curent pentru a decide tipul de input
     cmp al, ' '
     je store_byte         ; valoarea ramane in partea low
-    cmp al, 0dh           ; verificam daca am ajuns la sfarsitul sirului
+    cmp al, 0           ; verificam daca am ajuns la sfarsitul sirului
     je store_byte         ; daca da, salvam cifra curenta ca fiind ultimul octet
 
     shl bl, 4             ; prima cifra ramane in partea high
@@ -57,7 +56,7 @@ store_byte:
 done_parsing:
     mov actual_len, cx    ; salvam numarul total de octeti procesati
     ret
-parse_input endp
+parse_input_file endp
 
 hex_to_nibble proc
     cmp al, '0'           ; verificare limita inferioara cifre
@@ -74,18 +73,19 @@ hex_to_nibble endp
 
 ; calc_word_c
 calc_word_c proc
-    ; extragem primul nibble din primul octet si ultimul nibble din ultimul octet
+    ; xor intre primii 4 biti octet 0 si ultimii 4 biti ultimul octet
     mov al, octet_array[0]
-    shr al, 4             ; aducem partea high pe pozitia low
+    shr al, 4             ; primii 4 biti
     mov si, actual_len
     dec si
     mov bl, octet_array[si]
-    and bl, 0fh           ; izolam partea low
-    xor al, bl            ; aplicam operatia xor conform cerintei
+    and bl, 0fh           ; ultimii 4 biti
+    xor al, bl
     and al, 0fh
-    mov bl, al            ; rezultatul partial in bl
+    mov bl, al            ; stocam in bl (bits 0-3 ai lui C)
 
-    xor al, al            ; reset al pentru operatia or
+    ; or intre bitii 2-5 ai fiecarui octet
+    xor al, al
     lea si, octet_array
     mov cx, actual_len
 or_l:
@@ -95,19 +95,20 @@ or_l:
     or al, dl
     inc si
     loop or_l
-    shl al, 4             ; mutam rezultatul or pe pozitia high nibble
-    or bl, al             ; combinam cu rezultatul anterior
+    shl al, 4             ; mutam pe pozitia bits 4-7
+    or bl, al
 
-    xor al, al 
+    ; pas 3: suma modulo 256 [cite: 60, 73]
+    xor al, al
     lea si, octet_array
     mov cx, actual_len
 sum_l: add al, [si]       ; adunare repetata pentru suma modulo 256
     inc si
     loop sum_l
     
-    mov ah, al            ; suma merge in partea high a word-ului
-    mov al, bl            ; rezultatele merg in partea low
-    mov word_c, ax        ; salvam cuvantul de control final
+    mov ah, al            ; suma pe bits 8-15 
+    mov al, bl            ; rezultatele pas 1 si 2 pe bits 0-7
+    mov word_c, ax
     ret
 calc_word_c endp
 
@@ -167,10 +168,14 @@ rot_l:
     push cx
     mov al, [si]
     mov bl, al
-    and bl, 03h           ; determinam numarul de rotatii, ultimii 2 biti
-    mov cl, bl            ; mutam in cl pentru instructiunea rol
-    rol al, cl            ; rotire ciclica la stanga
-    mov [si], al          ; salvam valoarea modificata inapoi in array
+    shr bl, 6             ; izolam bitii 7 si 6
+    mov bh, bl
+    shr bh, 1             ; bh = bit 7
+    and bl, 01h           ; bl = bit 6
+    add bl, bh            ; bl = n (suma bitilor)
+    mov cl, bl
+    rol al, cl
+    mov [si], al
     inc si
     pop cx
     loop rot_l
@@ -203,7 +208,6 @@ daf_l: push cx
     mov al, [si]
     call print_bin_byte   ; afisare format binar
     mov dl, ')'
-    mov ah, 02h
     int 21h
     mov ah, 09h
     lea dx, msg_space

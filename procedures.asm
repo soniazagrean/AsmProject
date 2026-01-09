@@ -5,7 +5,7 @@ extrn octet_array:byte, actual_len:word, word_c:word
 extrn max_bit_pos:byte, buffer:byte, msg_space:byte
 
 ; facem functiile vizibile pentru main
-public parse_input, calc_word_c, sort_desc, find_max_bits
+public parse_input, calc_word_c, sort_desc, find_max_bits, rotation
 
 code segment
 assume cs:code

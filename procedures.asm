@@ -6,6 +6,7 @@ extrn max_bit_pos:byte, buffer:byte, msg_space:byte
 
 ; facem functiile vizibile pentru main
 public parse_input, calc_word_c, sort_desc, find_max_bits, rotation
+public display_array, display_array_full, print_hex_byte
 
 code segment
 assume cs:code
@@ -175,6 +176,80 @@ rot_l:
     loop rot_l
     ret
 rotation endp
+
+; utilitare i/o 
+display_array proc
+    lea si, octet_array
+    mov cx, actual_len
+da_l: mov al, [si]
+    call print_hex_byte   ; afisam octetul curent
+    mov ah, 09h
+    lea dx, msg_space     ; afisam spatiu intre elemente
+    int 21h
+    inc si
+    loop da_l
+    ret
+display_array endp
+
+display_array_full proc
+    lea si, octet_array
+    mov cx, actual_len
+daf_l: push cx
+    mov al, [si]
+    call print_hex_byte   ; afisare format hex
+    mov dl, '('
+    mov ah, 02h
+    int 21h
+    mov al, [si]
+    call print_bin_byte   ; afisare format binar
+    mov dl, ')'
+    mov ah, 02h
+    int 21h
+    mov ah, 09h
+    lea dx, msg_space
+    int 21h
+    inc si
+    pop cx
+    loop daf_l
+    ret
+display_array_full endp
+
+print_hex_byte proc
+    push ax
+    mov bl, al
+    shr al, 4             ; extragem prima cifra hex
+    call print_nibble
+    mov al, bl
+    and al, 0fh           ; extragem a doua cifra hex
+    call print_nibble
+    pop ax
+    ret
+print_hex_byte endp
+
+print_nibble proc
+    cmp al, 9
+    jbe is_d
+    add al, 7             ; ajustare pentru caracterele a-f
+is_d: add al, '0'         ; transformare in caracter ascii
+    mov dl, al
+    mov ah, 02h           ; apel dos pentru afisare caracter
+    int 21h
+    ret
+print_nibble endp
+
+print_bin_byte proc
+    push cx
+    mov cx, 8
+    mov bl, al
+pb_l: rol bl, 1           ; aducem bitul cel mai semnificativ in carry
+    mov dl, '0'
+    adc dl, 0             ; adaugam carry la caracterul '0'
+    mov ah, 02h
+    int 21h               ; afisam '0' sau '1'
+    loop pb_l
+    pop cx
+    ret
+print_bin_byte endp
 
 code ends
 end

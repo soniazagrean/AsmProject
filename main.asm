@@ -3,6 +3,7 @@
 ; declaram functiile care se afla in celalalt modul
 extrn parse_input:proc, calc_word_c:proc, sort_desc:proc
 extrn find_max_bits:proc, rotation:proc
+extrn display_array:proc, display_array_full:proc, print_hex_byte:proc
 
 ; declaram variabilele ca fiind publice pentru a fi vazute in celalalt modul
 public msg_space, octet_array, actual_len, word_c, max_bit_pos, buffer
@@ -60,12 +61,18 @@ read_loop:
     lea dx, msg_wordc
     int 21h
     ; functie pt afisare word_c
+    mov ax, word_c
+    mov al, ah
+    call print_hex_byte
+    mov al, byte ptr word_c
+    call print_hex_byte
 
     ; afisare sortat
     mov ah, 09h
     lea dx, msg_sorted
     int 21h
     ; functie pt afisarea sirului sortat
+    call display_array
 
     ; afisare max bit
     mov ah, 09h
@@ -90,6 +97,7 @@ do_rot:
     lea dx, msg_rot
     int 21h
     ; functie pt afisarea sirului rotit
+    call display_array_full 
 
     mov ah, 4ch
     int 21h
